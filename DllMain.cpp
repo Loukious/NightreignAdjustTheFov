@@ -29,25 +29,27 @@ void ReadConfig()
 DWORD WINAPI MainThread(LPVOID lpParam)
 {
 	Log("Activating AdjustTheFov...");
-	std::string aob = "48 8b 01 48 85 c0 74 06 f3 0f 10 40 14 c3 0f 57 c0 c3";
+	const std::string aob = "e9 ? ? ? ? 48 8b 01 48 85 c0 74 06 f3 0f 10 40 14 c3 0f 57 c0 c3";
 	uintptr_t hookAddress = 0;
+	const int offset = 5;
 	ReadConfig();
 
 	std::vector<unsigned char> fovBytes(sizeof(float), 0);
 	MemCopy((uintptr_t)&fovBytes[0], (uintptr_t)&fovValue, sizeof(float));
 	std::string fovHexStr = RawAobToStringAob(fovBytes);
-	std::string patchedBytes = "b8 " + fovHexStr + " 66 0f 6e c0 c3 90 90 90 90 90 90 90 90";
+	const std::string patchedBytes = "b8 " + fovHexStr + " 66 0f 6e c0 c3 90 90 90 90 90 90 90 90";
 
-	for (int i = 0; i < 2; i++)
+	hookAddress = AobScan(aob);
+
+	if (hookAddress == 0)
 	{
-		hookAddress = AobScan(aob);
-		if (hookAddress == 0)
-		{
-			Log("AdjustTheFov pattern number %d not found!", i + 1);
-			return 1;
-		}
-		ReplaceExpectedBytesAtAddress(hookAddress, aob, patchedBytes);
+		Log("AdjustTheFov pattern not found!");
+		return 1;
 	}
+
+	hookAddress += offset;
+
+	ReplaceExpectedBytesAtAddress(hookAddress, aob.substr(11), patchedBytes);
 
 	CloseLog();
 	return 0;
